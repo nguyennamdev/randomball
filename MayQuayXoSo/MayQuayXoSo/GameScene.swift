@@ -381,7 +381,7 @@ class GameScene: SKScene {
         guard let ballResult = self.ballResult else { return }
         ballResult.zPosition = 1
         ballResult.physicsBody = nil
-        let ballScaleSize = CGSize(width: size.width / (800 / 400), height: size.width / (800 / 400))
+        let ballScaleSize = CGSize(width: size.width / (800 / 400), height: size.width / (800 / 395))
         
         let moveAction = SKAction.moveBy(x: 0, y: midY - ballScaleSize.height / 2, duration: moveBallAnimDuration)
         let scaleAction = SKAction.scale(to: ballScaleSize, duration: moveBallAnimDuration)
@@ -391,23 +391,61 @@ class GameScene: SKScene {
        
         self.children.forEach({ node in
             if node != ballResult {
-                node.run(fadeOutAction)
+                node.run(fadeOutAction) {
+                    node.removeFromParent()
+                }
             }
         })
         ballResult.run(rotateAction)
         ballResult.run(scaleAction)
         ballResult.run(moveAction) { [weak ballResult, weak self] in
             guard let `self` = self, let ballResult = ballResult else { return }
-            self.shakeAnimation(ball: ballResult)
+            self.shakeAnimation(ball: ballResult, completion: { [weak self] in
+                self?.openBallResult()
+            })
         }
         
     }
     
-    private func shakeAnimation(ball: SKSpriteNode) {
+    private func shakeAnimation(ball: SKSpriteNode, completion: @escaping () -> Void) {
         let shakeAction1 = SKAction.rotate(toAngle: .pi / 18, duration: shakeAnimDuration / 4)
         let shakeAction0 = SKAction.rotate(toAngle: 0, duration: shakeAnimDuration / 4)
         let shakeAction2 = SKAction.rotate(toAngle: -.pi / 18, duration: shakeAnimDuration / 4)
-        ball.run(SKAction.repeat(SKAction.sequence([shakeAction1, shakeAction0, shakeAction2, shakeAction0]), count: 2))
+        ball.run(SKAction.repeat(SKAction.sequence([shakeAction1, shakeAction0, shakeAction2, shakeAction0]), count: 2)) {
+            completion()
+        }
+    }
+    
+    private func openBallResult() {
+        guard let ballResult = ballResult else { return }
+      
+        let ballScaleSize = CGSize(width: size.width / (800 / 400), height: size.width / (800 / 395))
+        let pieceSize = CGSize(width: ballScaleSize.width, height: size.width / (800 / 230))
+        
+        // add two piece node of ball
+        let paddingCurve = size.width / (800 / 32)
+        let yAnchor: CGFloat = paddingCurve / 230
+        let ballCap = SKSpriteNode(imageNamed: "ball_cap")
+        ballCap.size = pieceSize
+        ballCap.anchorPoint = CGPoint(x: 0, y: yAnchor)
+        ballCap.position = CGPoint(x: midX - ballScaleSize.width / 2, y: ballResult.position.y)
+        ballCap.zPosition = 1
+        addChild(ballCap)
+        
+        let bodyBall = SKSpriteNode(imageNamed: "body_ball_1")
+        bodyBall.size = pieceSize
+        bodyBall.position = CGPoint(x: midX, y: ballResult.position.y - ((ballScaleSize.height - pieceSize.height) / 2))
+        bodyBall.zPosition = 0.5
+        addChild(bodyBall)
+        
+        // remove ball result
+        ballResult.removeFromParent()
+        
+        // animate open ball cap
+        // change ball cap anchor to left bottom
+      
+//        ballCap.anchorPoint = CGPoint(x: 0, y: 0.5)
+        ballCap.zRotation = .pi / 4
     }
     
     // MARK: - Actions
