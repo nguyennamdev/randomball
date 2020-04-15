@@ -53,6 +53,20 @@ struct SizeConfig {
     
 }
 
+class BallModel {
+    
+    let spriteNode: SKSpriteNode
+    let texture: String
+    let index: Int
+    
+    init(spriteNode: SKSpriteNode, texture: String, index: Int) {
+        self.spriteNode = spriteNode
+        self.texture = texture
+        self.index = index
+    }
+    
+}
+
 class GameScene: SKScene {
     
     // MARK: - Public properties
@@ -77,7 +91,7 @@ class GameScene: SKScene {
     var moveCoinAnimDuration: TimeInterval = 1
     
     // MARK: - Private properties
-    private var balls: [SKSpriteNode] = []
+    private var listBall: [BallModel] = []
     private var displayLink: CADisplayLink?
     private var decreaseStartTime: Date!
     private var midX: CGFloat = 0.0
@@ -85,11 +99,14 @@ class GameScene: SKScene {
     private var boxEdge: [SKSpriteNode] = []
     private var sizeConfig: SizeConfig!
     private var isOpenningBox: Bool = false
+    
     private var lockNode: SKSpriteNode!
-    private var ballResultOldPosition: CGPoint?
-    private var ballResult: SKSpriteNode?
-    private var ballResultIsIdle: Bool = false
-    private var timeGotResult: TimeInterval = 0
+    
+    private var ballResult: BallModel?
+    private var ballSpriteResultOldPosition: CGPoint?
+    private var ballSpriteResultIsIdle: Bool = false
+    private var timeGotBallSpriteResult: TimeInterval = 0
+    
     private var starNodes: [SKSpriteNode] = []
     private var spaceEdge: SKSpriteNode!
     
@@ -113,8 +130,8 @@ class GameScene: SKScene {
     }
     
     override func update(_ currentTime: TimeInterval) {
-        if closeDoorToGetOneBall(at: currentTime) && !ballResultIsIdle {
-            guard currentTime != self.timeGotResult else { return }
+        if closeDoorToGetOneBall(at: currentTime) && !ballSpriteResultIsIdle {
+            guard currentTime != self.timeGotBallSpriteResult else { return }
             if self.waitBallOutOfBoxAndIdle(ball: self.ballResult) {
                 
                 self.animationBallResultAnimate()
@@ -125,9 +142,9 @@ class GameScene: SKScene {
     // MARK: - Public function
     public func impulseBalls() {
         self.initDisplayLink()
-        self.balls.forEach { (node) in
-            node.physicsBody?.applyImpulse(CGVector(dx: size.height,
-                                                    dy: size.height))
+        self.listBall.forEach { (ball) in
+            ball.spriteNode.physicsBody?.applyImpulse(CGVector(dx: size.width,
+                                                    dy: sizeConfig.boxHeight))
         }
     }
     
@@ -280,17 +297,22 @@ class GameScene: SKScene {
         for _ in 0..<10 {
             let ballWidth = sizeConfig._ballWidth
             let ballRan = Int.random(in: 1...4)
-            let ball = SKSpriteNode(imageNamed: "ball_\(ballRan)")
-            ball.name = "ball_\(balls.count)"
-            ball.size = CGSize(width: ballWidth, height: ballWidth)
-            ball.position = CGPoint(x: CGFloat.random(in: ballWidth..<size.width - ballWidth),
+            let textureName = "ball_\(ballRan)"
+            let ballIndex = listBall.count
+            
+            let ballNode = SKSpriteNode(imageNamed: textureName)
+            ballNode.name = "ball_\(ballIndex)"
+            ballNode.size = CGSize(width: ballWidth, height: ballWidth)
+            ballNode.position = CGPoint(x: CGFloat.random(in: ballWidth..<size.width - ballWidth),
                                     y: -(sizeConfig.boxHeight - sizeConfig.edgeWeight) + ballWidth)
             
-            ball.physicsBody = SKPhysicsBody(circleOfRadius: ball.size.width / 2)
-            ball.physicsBody?.restitution = 1
-            ball.zPosition = 0.5
-            addChild(ball)
-            balls.append(ball)
+            ballNode.physicsBody = SKPhysicsBody(circleOfRadius: ballNode.size.width / 2)
+            ballNode.physicsBody?.restitution = 1
+            ballNode.zPosition = 0.5
+            addChild(ballNode)
+            
+            let ball = BallModel(spriteNode: ballNode, texture: textureName, index: ballIndex)
+            listBall.append(ball)
         }
     }
     
@@ -301,8 +323,8 @@ class GameScene: SKScene {
     }
     
     private func descreaseDetitutionTo(value: CGFloat) {
-        self.balls.forEach { (node) in
-            node.physicsBody?.restitution = value
+        self.listBall.forEach { (ball) in
+            ball.spriteNode.physicsBody?.restitution = value
         }
     }
     
@@ -351,8 +373,8 @@ class GameScene: SKScene {
         }
         if isOpenningBox {
             // get the ball went out of box
-            let ballFilter = balls.filter({ (ball) -> Bool in
-                let topY = -ball.position.y - ball.size.height / 2
+            let ballFilter = listBall.filter({ (ball) -> Bool in
+                let topY = -ball.spriteNode.position.y - ball.spriteNode.size.height / 2
                 if topY > sizeConfig.boxHeight {
                     return true
                 }
@@ -366,21 +388,21 @@ class GameScene: SKScene {
                 isOpenningBox = false
                 // assign to global variable
                 ballResult = ballFilter.first
-                ballResultOldPosition = ballResult?.position
-                timeGotResult = time
+                ballSpriteResultOldPosition = ballResult?.spriteNode.position
+                timeGotBallSpriteResult = time
                 return true
             }
         }
         return false
     }
     
-    private func waitBallOutOfBoxAndIdle(ball: SKSpriteNode?) -> Bool {
-        guard let ballResultOldPosition = self.ballResultOldPosition,
-            ballResultOldPosition == ball?.position else {
-                self.ballResultOldPosition = ball?.position
+    private func waitBallOutOfBoxAndIdle(ball: BallModel?) -> Bool {
+        guard let ballResultOldPosition = self.ballSpriteResultOldPosition,
+            ballResultOldPosition == ball?.spriteNode.position else {
+                self.ballSpriteResultOldPosition = ball?.spriteNode.position
                 return false
         }
-        ballResultIsIdle = true
+        ballSpriteResultIsIdle = true
         return true
     }
     
@@ -392,8 +414,8 @@ class GameScene: SKScene {
     
     private func animationBallResultAnimate() {
         guard let ballResult = self.ballResult else { return }
-        ballResult.zPosition = 1
-        ballResult.physicsBody = nil
+        ballResult.spriteNode.zPosition = 1
+        ballResult.spriteNode.physicsBody = nil
         let ballScaleSize = CGSize(width: size.width / (800 / 400), height: size.width / (800 / 395))
         
         let moveAction = SKAction.moveBy(x: 0, y: midY - ballScaleSize.height / 2, duration: moveBallAnimDuration)
@@ -403,9 +425,9 @@ class GameScene: SKScene {
         
         removeNodesDontNeed()
         // chain animation here
-        ballResult.run(rotateAction)
-        ballResult.run(scaleAction)
-        ballResult.run(moveAction) { [weak ballResult, weak self] in
+        ballResult.spriteNode.run(rotateAction)
+        ballResult.spriteNode.run(scaleAction)
+        ballResult.spriteNode.run(moveAction) { [weak ballResult, weak self] in
             guard let `self` = self, let ballResult = ballResult else { return }
             self.shakeAnimation(ball: ballResult, completion: { [weak self] in
                 self?.openHalfOfBallResult(completion: {  [weak self] bodyBall in
@@ -422,7 +444,7 @@ class GameScene: SKScene {
         let fadeOutAction = SKAction.fadeOut(withDuration: moveBallAnimDuration)
         spaceEdge.color = .clear
         self.children.forEach({ node in
-            if node != ballResult {
+            if node != ballResult?.spriteNode {
                 node.run(fadeOutAction) {
                     node.removeFromParent()
                 }
@@ -430,17 +452,20 @@ class GameScene: SKScene {
         })
     }
     
-    private func shakeAnimation(ball: SKSpriteNode, completion: @escaping () -> Void) {
-        let shakeAction1 = SKAction.rotate(toAngle: .pi / 18, duration: shakeAnimDuration / 4)
+    private func shakeAnimation(ball: BallModel, completion: @escaping () -> Void) {
+        let degree = CGFloat.pi / 18 // 10°
+        
+        let shakeAction1 = SKAction.rotate(toAngle: degree, duration: shakeAnimDuration / 4)
         let shakeAction0 = SKAction.rotate(toAngle: 0, duration: shakeAnimDuration / 4)
-        let shakeAction2 = SKAction.rotate(toAngle: -.pi / 18, duration: shakeAnimDuration / 4)
-        ball.run(SKAction.repeat(SKAction.sequence([shakeAction1, shakeAction0, shakeAction2, shakeAction0]), count: 2)) {
+        let shakeAction2 = SKAction.rotate(toAngle: -degree, duration: shakeAnimDuration / 4)
+        ball.spriteNode.run(SKAction.repeat(SKAction.sequence([shakeAction1, shakeAction0, shakeAction2, shakeAction0]), count: 2)) {
             completion()
         }
     }
     
     private func openHalfOfBallResult(completion: @escaping (_ bodyBall: SKSpriteNode) -> Void) {
         guard let ballResult = ballResult else { return }
+        let ballSpriteNode = ballResult.spriteNode
         
         let ballScaleSize = CGSize(width: size.width / (800 / 400), height: size.width / (800 / 395))
         let pieceSize = CGSize(width: ballScaleSize.width, height: size.width / (800 / 230))
@@ -451,18 +476,19 @@ class GameScene: SKScene {
         let ballCap = SKSpriteNode(imageNamed: "ball_cap")
         ballCap.size = pieceSize
         ballCap.anchorPoint = CGPoint(x: 0, y: yAnchor)
-        ballCap.position = CGPoint(x: midX - ballScaleSize.width / 2, y: ballResult.position.y)
+        ballCap.position = CGPoint(x: midX - ballScaleSize.width / 2, y: ballSpriteNode.position.y)
         ballCap.zPosition = 1
         addChild(ballCap)
         
-        let bodyBall = SKSpriteNode(imageNamed: "body_ball_1")
+        
+        let bodyBall = SKSpriteNode(imageNamed: "body_\(ballResult.texture)")
         bodyBall.size = pieceSize
-        bodyBall.position = CGPoint(x: midX, y: ballResult.position.y - ((ballScaleSize.height - pieceSize.height) / 2))
+        bodyBall.position = CGPoint(x: midX, y: ballSpriteNode.position.y - ((ballScaleSize.height - pieceSize.height) / 2))
         bodyBall.zPosition = 0.5
         addChild(bodyBall)
         
-        // remove ball result
-        ballResult.alpha = 0
+        // hide ball sprite node result
+        ballSpriteNode.alpha = 0
         
         // animate open ball cap
         let rotateAction = SKAction.rotate(byAngle: .pi / (180 / 135), duration: openBallAnimDuration)
@@ -475,17 +501,18 @@ class GameScene: SKScene {
     }
     
     private func showCoinAndMoveToCenter() {
+        guard let ballSpriteResult = ballResult?.spriteNode else { return }
         let paddingCurve = size.width / (800 / 32)
         let coinNode = SKSpriteNode(imageNamed: "coin")
         coinNode.size = CGSize(width: size.width / (800 / 200), height: size.width / (800 / 210))
-        let y = ballResult!.position.y + coinNode.size.height / 2 - paddingCurve
+        let y = ballSpriteResult.position.y + coinNode.size.height / 2 - paddingCurve
         coinNode.position = CGPoint(x: midX, y: y)
         coinNode.zPosition = 1
         addChild(coinNode)
         
         showStarAround(coinNode)
         handleMoveCoinAnim(coinNode: coinNode) {
-            self.ballResult?.removeFromParent()
+            ballSpriteResult.removeFromParent()
         }
     }
     
