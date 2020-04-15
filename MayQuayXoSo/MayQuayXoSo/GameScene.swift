@@ -71,6 +71,8 @@ class GameScene: SKScene {
     
     // MARK: - Public properties
     
+    var delayToImpulseDuration: TimeInterval = 2.0
+    
     /// Anim step 1
     var boxAnimDuration: TimeInterval = 2.0
     var ballWidth: CGFloat = 120
@@ -124,7 +126,7 @@ class GameScene: SKScene {
         setupLockNode()
         
         createBall()
-        DispatchQueue.main.asyncAfter(deadline: DispatchTime.now() + 2.0) {
+        DispatchQueue.main.asyncAfter(deadline: DispatchTime.now() + delayToImpulseDuration) {
             self.impulseBalls()
         }
     }
